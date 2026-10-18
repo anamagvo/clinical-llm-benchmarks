@@ -1,0 +1,17 @@
+services:
+  benchmark:
+    build: .
+    depends_on:
+      - ollama
+    environment:
+      MODEL_API_KEY: ${MODEL_API_KEY:-}
+    volumes:
+      - ./results:/app/results
+      - ./scenarios:/app/scenarios
+      - ./config_with_docker.yaml:/app/config.yaml
+  ollama:
+    image: ollama/ollama:latest
+    ports: ["11434:11434"]
+    volumes: [ollama:/root/.ollama]
+volumes:
+  ollama:

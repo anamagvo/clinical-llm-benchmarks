@@ -1,0 +1,29 @@
+output_dir: results
+scenarios_dir: scenarios
+repetitions: 1000
+models:
+  # Local Ollama models
+  - name: llama3.1-local
+    type: ollama
+    model: llama3.1:latest
+    base_url: http://127.0.0.1:11434
+    timeout: [10, 300]
+    format: json
+    options: {temperature: 0}
+    
+  - name: qwen3-local
+    type: ollama
+    model: qwen3:4b
+    base_url: http://127.0.0.1:11434
+    timeout: [10, 300]
+    format: json
+    options: {temperature: 0}
+    
+  # Remote server models - using the same endpoint structure as your working URL
+  - name: qwen3-remote
+    type: ollama
+    model: qwen3:14b
+    base_url: http://192.168.178.50:3000
+    timeout: [10, 300]
+    format: json
+    options: {temperature: 0}

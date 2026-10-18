@@ -1,0 +1,23 @@
+output_dir: results
+scenarios_dir: scenarios
+repetitions: 1000
+models:
+  # Local Ollama models via the shared Compose network
+  - name: llama3.1-local
+    type: ollama
+    model: llama3.1:latest
+    base_url: http://ollama:11434
+    timeout: [10, 300]
+    format: json
+    options: {temperature: 0}
+
+  - name: qwen3-local
+    type: ollama
+    model: qwen3:4b
+    base_url: http://ollama:11434
+    timeout: [10, 300]
+    format: json
+    options: {temperature: 0}
+
+  # Remote server models can be re-enabled only with a true Ollama-compatible endpoint.
+  # Open Web UI and other web frontends are not compatible with this benchmark.
