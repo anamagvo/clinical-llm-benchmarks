@@ -19,7 +19,7 @@ models:
     format: json
     options: {temperature: 0}
     
-  # Remote server models - using the same endpoint structure as your working URL
+  # Remote server models - using the same endpoint structure as working URL (note: this is only for local setup and would need to be changed according to model endpoints on the actual remote server)
   - name: qwen3-remote
     type: ollama
     model: qwen3:14b
