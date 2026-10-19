@@ -81,15 +81,25 @@ Wenn der Benchmark nach dem Start `HTTP 405` oder `ConnectionError: inference st
 - kein echter Ollama-Server erreichbar
 - Open Web UI statt Ollama verwendet
 - falscher Port oder nicht erreichbares Docker-Netzwerk
+- das gewählte Modell passt nicht in die verfügbare RAM/Shared-Memory-Limitierung
 
 Prüfen:
 
 ```bash
 docker-compose ps
 curl -i http://127.0.0.1:11434/api/tags
+docker-compose exec ollama ollama list
+docker-compose exec ollama ollama run qwen3:4b "Hallo"
 ```
 
-Wenn `curl` auf `http://127.0.0.1:11434/api/tags` keinen gültigen JSON-Response liefert, ist Ollama nicht richtig erreichbar.
+Wenn `curl` auf `http://127.0.0.1:11434/api/tags` keinen gültigen JSON-Response liefert, ist Ollama nicht richtig erreichbar. Wenn `ollama run ...` mit `insufficient memory` oder `unable to allocate CPU_REPACK buffer` fehlschlägt, ist das Modell zu groß für die aktuelle VM/Container-RAM. In Colima ist ein größerer VM-Start häufig nötig, z. B.:
+
+```bash
+colima stop
+colima start --cpu 4 --memory 12 --disk 80
+```
+
+Dann das Modell erneut ziehen/ausführen und den Benchmark neu starten.
 
 ## 9) Empfehlung
 

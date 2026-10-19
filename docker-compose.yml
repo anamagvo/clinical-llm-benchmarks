@@ -13,5 +13,8 @@ services:
     image: ollama/ollama:latest
     ports: ["11434:11434"]
     volumes: [ollama:/root/.ollama]
+    mem_limit: 12g
+    shm_size: "2gb"
+    cpus: 2.0
 volumes:
   ollama:
