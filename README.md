@@ -84,14 +84,21 @@ Then run:
 
 ```bash
 docker compose build benchmark
-docker compose run --rm benchmark run_benchmark.py --config config.yaml --output results/raw.jsonl
-docker compose run --rm benchmark evaluate_results.py --input results/raw.jsonl --output results/evaluated.jsonl
-docker compose run --rm benchmark generate_report.py --input results/evaluated.jsonl --output results/report
+docker compose run --rm benchmark --repetitions 1 --output results/raw.jsonl
+docker compose run --rm --entrypoint python benchmark evaluate_results.py --input results/raw.jsonl --output results/evaluated.jsonl
+docker compose run --rm --entrypoint python benchmark generate_report.py --input results/evaluated.jsonl --output results/report
 ```
 
-The three mounted paths are `results/`, `scenarios/`, `config.yaml`; outputs remain
-on the host. For Docker mock mode use `run_benchmark.py --mock --repetitions 1
---output results/mock-raw.jsonl` after the service name.
+Mounted data paths are `results/`, `scenarios/`, `config.yaml`; outputs remain on
+the host. For Docker mock mode run:
+
+```bash
+docker compose run --rm benchmark --mock --repetitions 1 --output results/mock-raw.jsonl
+```
+
+Benchmark code (`run_benchmark.py`, `benchmark/`, `model_adapters/`) is mounted
+read-only into the container, so CLI/code changes are picked up without rebuilding
+the image. Rebuild is still required after dependency or base-image changes.
 
 ## Model adapters and configuration
 

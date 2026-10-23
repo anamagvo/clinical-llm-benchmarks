@@ -1,6 +1,8 @@
 output_dir: results
 scenarios_dir: scenarios
-repetitions: 1000
+repetitions: 30
+warmup_repetitions: 5
+
 models:
   # Local Ollama models via the shared Compose network
   - name: llama3.1-local

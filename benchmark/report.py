@@ -45,6 +45,9 @@ def summarize(turns, records=()):
                     planned[key] = record["repetitions"]
                     groups[key] = []
     for row in turns:
+        # Skip warm-up runs for summary (as they distort the results)
+        if row.get("warmup"):
+            continue
         groups[(row["run_id"], row["model"], row["scenario"], row["mock"])].append(row)
     summary = []
     for (run_id, model, scenario, mock), rows in groups.items():
