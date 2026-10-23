@@ -1,6 +1,7 @@
 output_dir: results
 scenarios_dir: scenarios
-repetitions: 1000
+repetitions: 100
+warmup_repetitions: 5
 models:
   # Local Ollama models
   - name: llama3.1-local
