@@ -55,49 +55,47 @@ def main(argv=None):
     print(f"Recording to {output}", flush=True)
     status = "complete"
     try:
-        # Run warmup repetitions first if configured
+        # Run warmup repetitions first if configured - as often as configured per model but not times per scenario!
         if config.get("warmup_repetitions", 0) > 0:
             warmup_repetitions = config.get("warmup_repetitions", 0)
-            print(f"Performing {warmup_repetitions} warm-up repetitions...", flush=True)
+            print(f"Performing {warmup_repetitions} warm-up repetitions per model...", flush=True)
             
             for model, adapter in adapters:
-                for scenario in scenarios:
-                    for repetition in range(1, warmup_repetitions + 1):
-                        # Perform the same steps as in real runs
-                        messages = [{"role": "system", "content": scenario.system_prompt}] + list(scenario.context)
-                        for turn_number, turn in enumerate(scenario.patient_turns, 1):
-                            messages.append({"role": "user", "content": turn["message"]})
-                            start_timestamp, start = utc_now(), time.perf_counter()
-                            try:
-                                response = adapter.generate(list(messages))
-                            except KeyboardInterrupt:
-                                response = Response(error="Interrupted by user", interrupted=True)
-                            except Exception as exc:
-                                response = Response(error=f"{type(exc).__name__}: adapter failed")
-                            latency = time.perf_counter() - start
-                            # IMPORTANT: Mark warm-up runs as such
-                            row = {"record_type": "turn", "schema_version": 1, "run_id": run_id,
-                                "model": model["name"], "backend": model["type"], "model_id": model.get("model"),
-                                "mock": model["type"] == "mock", "scenario": scenario.id, "title": scenario.title,
-                                "repetition": repetition, "turn": turn_number, "expected_turns": len(scenario.patient_turns),
-                                "patient_response_type": turn.get("response_type"), "messages": list(messages),
-                                "criteria": {**scenario.criteria, **turn.get("criteria", {})},
-                                "started_at": start_timestamp, "ended_at": utc_now(), "latency_s": latency,
-                                "ttft_s": response.ttft_s, "input_tokens": response.input_tokens,
-                                "output_tokens": response.output_tokens, "token_source": response.token_source,
-                                "tokens_per_s": response.output_tokens / latency if response.output_tokens is not None and latency > 0 else None,
-                                "response": response.text, "error": response.error,
-                                "status": "interrupted" if response.interrupted else "error" if response.error else "ok",
-                                "finish_reason": response.finish_reason,
-                                "warmup": True}
-                            append_record(output, row)
-                            if response.interrupted:
-                                raise KeyboardInterrupt
-                            if response.error:
-                                break
-                            messages.append({"role": "assistant", "content": response.text})
 
-        #Now perform the actual benchmark runs
+                for repetition in range(1, warmup_repetitions + 1):
+                        # Perform the same steps as in real runs
+                        messages = [{"role": "system", "content": "You are a helpful medical assistant."}]
+                        start_timestamp, start = utc_now(), time.perf_counter()
+                        try:
+                            response = adapter.generate(list(messages))
+                        except KeyboardInterrupt:
+                            response = Response(error="Interrupted by user", interrupted=True)
+                        except Exception as exc:
+                            response = Response(error=f"{type(exc).__name__}: adapter failed")
+                        latency = time.perf_counter() - start
+                        # IMPORTANT: Mark warm-up runs as such
+                        row = {"record_type": "turn", "schema_version": 1, "run_id": run_id,
+                            "model": model["name"], "backend": model["type"], "model_id": model.get("model"),
+                            "mock": model["type"] == "mock", "scenario": "warmup", "title": "Warm-up",
+                            "repetition": repetition, "turn": 1, "expected_turns": 1, #once per warm-up, not per scenario
+                            "patient_response_type": "complete", "messages": list(messages),
+                            "criteria": {},
+                            "started_at": start_timestamp, "ended_at": utc_now(), "latency_s": latency,
+                            "ttft_s": response.ttft_s, "input_tokens": response.input_tokens,
+                            "output_tokens": response.output_tokens, "token_source": response.token_source,
+                            "tokens_per_s": response.output_tokens / latency if response.output_tokens is not None and latency > 0 else None,
+                            "response": response.text, "error": response.error,
+                            "status": "interrupted" if response.interrupted else "error" if response.error else "ok",
+                            "finish_reason": response.finish_reason,
+                            "warmup": True}
+                        append_record(output, row)
+                        if response.interrupted:
+                            raise KeyboardInterrupt
+                        if response.error:
+                            break
+                        messages.append({"role": "assistant", "content": response.text})
+
+        #Now perform the actual benchmark runs for each model and scenario combination
         for model, adapter in adapters:
             for scenario in scenarios:
                 for repetition in range(1, repetitions + 1):
