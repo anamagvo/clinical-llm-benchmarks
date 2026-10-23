@@ -4,5 +4,4 @@ WORKDIR /app
 COPY . .
 RUN uv sync --locked --no-dev
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
-ENTRYPOINT ["python", "run_benchmark.py"]
-CMD ["--config", "config.yaml"]
+ENTRYPOINT ["python", "run_benchmark.py", "--config", "config.yaml"]

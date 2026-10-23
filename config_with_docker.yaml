@@ -19,5 +19,13 @@ models:
     format: json
     options: {temperature: 0}
 
+  - name: tiny-local
+    type: ollama
+    model: gemma:2b
+    base_url: http://ollama:11434
+    timeout: [10, 300]
+    format: json
+    options: {temperature: 0}
+
   # Remote server models can be re-enabled only with a true Ollama-compatible endpoint.
   # Open Web UI and other web frontends are not compatible with this benchmark.

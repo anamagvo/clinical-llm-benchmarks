@@ -62,6 +62,16 @@ For an existing server on the host, set `base_url` to
 The host server must listen on an interface accessible from Docker; restrict
 firewall access rather than exposing an unauthenticated inference server publicly.
 
+> Docker troubleshooting note: in the Compose setup, the benchmark container reads
+> `/app/config.yaml`, which is mounted from `config_with_docker.yaml` in the repo.
+> The model endpoint must therefore be `http://ollama:11434`, not a frontend URL or
+> `localhost`. If a model is installed in Ollama but inference still returns 500s,
+> check whether the model actually runs in the Ollama container itself, e.g.
+> `docker compose exec ollama ollama run qwen3:4b "Hallo"`. A 500 here usually means
+> the model cannot be loaded because the VM/container has insufficient RAM or shared
+> memory. On Colima this often requires a larger VM, e.g.
+> `colima start --cpu 4 --memory 12 --disk 80`.
+
 Alternatively use the optional Ollama service (NVIDIA GPU + container toolkit):
 
 ```bash
