@@ -22,13 +22,25 @@ def positive_repetitions(value):
     return value
 
 
+def build_warmup_messages(scenarios):
+    first_scenario = scenarios[0]
+    if not first_scenario.patient_turns:
+        raise ValueError(f"Scenario {first_scenario.id} has no patient turns for warm-up")
+    first_turn = first_scenario.patient_turns[0]
+    return (
+        [{"role": "system", "content": first_scenario.system_prompt}]
+        + list(first_scenario.context)
+        + [{"role": "user", "content": first_turn["message"]}]
+    )
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Record workstation LLM responses; no scoring")
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--repetitions", type=int)
     parser.add_argument("--output", help="New raw JSONL file (existing files are never overwritten)")
     parser.add_argument("--mock", action="store_true")
-    parser.add_argument("--warmup_repetitions", type=int, default=5)
+    parser.add_argument("--warmup_repetitions", type=int)
     args = parser.parse_args(argv)
     config_path = Path(args.config).resolve()
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
@@ -41,6 +53,7 @@ def main(argv=None):
     if len({s.id for s in scenarios}) != len(scenarios):
         raise ValueError("Scenario IDs must be unique")
     adapters = [(m, get_adapter(m)) for m in models]
+    warmup_messages = build_warmup_messages(scenarios)
     run_id = str(uuid.uuid4())
     output = Path(args.output) if args.output else config_path.parent / config.get("output_dir", "results") / f"raw-{run_id}.jsonl"
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -55,48 +68,55 @@ def main(argv=None):
     print(f"Recording to {output}", flush=True)
     status = "complete"
     try:
-        # Run warmup repetitions first if configured - as often as configured per model but not times per scenario!
-        if config.get("warmup_repetitions", 0) > 0:
-            warmup_repetitions = config.get("warmup_repetitions", 0)
-            print(f"Performing {warmup_repetitions} warm-up repetitions per model...", flush=True)
             
-            for model, adapter in adapters:
+        for model, adapter in adapters:
+
+            # Run warmup repetitions first if configured - as often as configured per model but not times per scenario!
+            warmup_repetitions = (
+                args.warmup_repetitions
+                if args.warmup_repetitions is not None
+                else config.get("warmup_repetitions", 0)
+            )
+            
+            if warmup_repetitions > 0:
+                print(f"Performing {warmup_repetitions} warm-up repetitions for model {model['name']}...", flush=True)
 
                 for repetition in range(1, warmup_repetitions + 1):
-                        # Perform the same steps as in real runs
-                        messages = [{"role": "system", "content": "You are a helpful medical assistant."}]
-                        start_timestamp, start = utc_now(), time.perf_counter()
-                        try:
-                            response = adapter.generate(list(messages))
-                        except KeyboardInterrupt:
-                            response = Response(error="Interrupted by user", interrupted=True)
-                        except Exception as exc:
-                            response = Response(error=f"{type(exc).__name__}: adapter failed")
-                        latency = time.perf_counter() - start
-                        # IMPORTANT: Mark warm-up runs as such
-                        row = {"record_type": "turn", "schema_version": 1, "run_id": run_id,
-                            "model": model["name"], "backend": model["type"], "model_id": model.get("model"),
-                            "mock": model["type"] == "mock", "scenario": "warmup", "title": "Warm-up",
-                            "repetition": repetition, "turn": 1, "expected_turns": 1, #once per warm-up, not per scenario
-                            "patient_response_type": "complete", "messages": list(messages),
-                            "criteria": {},
-                            "started_at": start_timestamp, "ended_at": utc_now(), "latency_s": latency,
-                            "ttft_s": response.ttft_s, "input_tokens": response.input_tokens,
-                            "output_tokens": response.output_tokens, "token_source": response.token_source,
-                            "tokens_per_s": response.output_tokens / latency if response.output_tokens is not None and latency > 0 else None,
-                            "response": response.text, "error": response.error,
-                            "status": "interrupted" if response.interrupted else "error" if response.error else "ok",
-                            "finish_reason": response.finish_reason,
-                            "warmup": True}
-                        append_record(output, row)
-                        if response.interrupted:
-                            raise KeyboardInterrupt
-                        if response.error:
-                            break
-                        messages.append({"role": "assistant", "content": response.text})
+                    print(f"Warm-up repetition {repetition} for model {model['name']}", flush=True)
+                    # Match real run payload shape for adapters expecting strict structured output.
+                    messages = list(warmup_messages)
+                    start_timestamp, start = utc_now(), time.perf_counter()
+                    try:
+                        response = adapter.generate(list(messages))
+                    except KeyboardInterrupt:
+                        response = Response(error="Interrupted by user", interrupted=True)
+                    except Exception as exc:
+                        response = Response(error=f"{type(exc).__name__}: adapter failed")
+                    latency = time.perf_counter() - start
+                    # IMPORTANT: Mark warm-up runs as such
+                    row = {"record_type": "turn", "schema_version": 1, "run_id": run_id,
+                        "model": model["name"], "backend": model["type"], "model_id": model.get("model"),
+                        "mock": model["type"] == "mock", "scenario": "warmup", "title": "Warm-up",
+                        "repetition": repetition, "turn": 1, "expected_turns": 1, #once per warm-up, not per scenario
+                        "patient_response_type": "complete", "messages": list(messages),
+                        "criteria": {},
+                        "started_at": start_timestamp, "ended_at": utc_now(), "latency_s": latency,
+                        "ttft_s": response.ttft_s, "input_tokens": response.input_tokens,
+                        "output_tokens": response.output_tokens, "token_source": response.token_source,
+                        "tokens_per_s": response.output_tokens / latency if response.output_tokens is not None and latency > 0 else None,
+                        "response": response.text, "error": response.error,
+                        "status": "interrupted" if response.interrupted else "error" if response.error else "ok",
+                        "finish_reason": response.finish_reason,
+                        "warmup": True}
+                    append_record(output, row)
+                    if response.interrupted:
+                        raise KeyboardInterrupt
+                    if response.error:
+                        print(f"Warning: Repetition {repetition} failed for model {model['name']} in warm-up repetition {repetition}: {response.error}")
 
-        #Now perform the actual benchmark runs for each model and scenario combination
-        for model, adapter in adapters:
+                    messages.append({"role": "assistant", "content": response.text})
+
+            #Now perform the actual benchmark runs for current model for each scenario 
             for scenario in scenarios:
                 for repetition in range(1, repetitions + 1):
                     messages = [{"role": "system", "content": scenario.system_prompt}] + list(scenario.context)
