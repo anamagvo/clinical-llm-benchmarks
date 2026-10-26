@@ -123,13 +123,29 @@ function sortTable(n) {
             shouldSwitch = false;
             x = rows[i].getElementsByTagName("TD")[n];
             y = rows[i + 1].getElementsByTagName("TD")[n];
+            
+            // Helper function to compare values properly
+            function compareValues(a, b) {
+                // Try to parse as numbers
+                var numA = parseFloat(a);
+                var numB = parseFloat(b);
+                
+                // If both are valid numbers, compare numerically
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    return numA - numB;
+                }
+                
+                // Otherwise, do string comparison
+                return a.toLowerCase().localeCompare(b.toLowerCase());
+            }
+            
             if (dir == "asc") {
-                if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                if (compareValues(x.innerHTML, y.innerHTML) > 0) {
                     shouldSwitch = true;
                     break;
                 }
             } else if (dir == "desc") {
-                if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+                if (compareValues(x.innerHTML, y.innerHTML) < 0) {
                     shouldSwitch = true;
                     break;
                 }
