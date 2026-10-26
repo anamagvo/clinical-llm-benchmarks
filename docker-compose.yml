@@ -9,6 +9,9 @@ services:
       - ./results:/app/results
       - ./scenarios:/app/scenarios
       - ./config_with_docker.yaml:/app/config.yaml
+      - ./run_benchmark.py:/app/run_benchmark.py:ro
+      - ./benchmark:/app/benchmark:ro
+      - ./model_adapters:/app/model_adapters:ro
   ollama:
     image: ollama/ollama:latest
     ports: ["11434:11434"]
